@@ -357,28 +357,27 @@ static int vmount_thread_main(int argc, char *argv[])
 			//get input: we cannot make the timeout too large, because the output needs to update
 			//periodically for stabilization and angle updates.
 
-			for (int i = 0; i < thread_data.input_objs_len; ++i) {
-
-				bool already_active = (last_active == i);
-
-				ControlData *control_data_to_check = nullptr;
-				unsigned int poll_timeout = already_active ? 50 : 0; // poll only on active input to reduce latency
-				int ret = thread_data.input_objs[i]->update(poll_timeout, &control_data_to_check, already_active);
-
-				if (ret) {
-					PX4_ERR("failed to read input %i (ret: %i)", i, ret);
-					continue;
-				}
-
-				if (control_data_to_check != nullptr || already_active) {
-					control_data = control_data_to_check;
-					last_active = i;
-				}
-			}
-
 			hrt_abstime now = hrt_absolute_time();
 			if (now - last_output_update > 10000) { // rate-limit the update of outputs
 				last_output_update = now;
+				for (int i = 0; i < thread_data.input_objs_len; ++i) {
+
+					bool already_active = (last_active == i);
+
+					ControlData *control_data_to_check = nullptr;
+					unsigned int poll_timeout = already_active ? 50 : 0; // poll only on active input to reduce latency
+					int ret = thread_data.input_objs[i]->update(poll_timeout, &control_data_to_check, already_active);
+
+					if (ret) {
+						PX4_ERR("failed to read input %i (ret: %i)", i, ret);
+						continue;
+					}
+
+					if (control_data_to_check != nullptr || already_active) {
+						control_data = control_data_to_check;
+						last_active = i;
+					}
+				}
 
 				//update output
 				int ret = thread_data.output_obj->update(control_data);
